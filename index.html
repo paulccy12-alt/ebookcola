@@ -3,16 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>迪士尼探險號旅遊手冊</title>
+    <title>可樂旅遊迪士尼探險號旅遊手冊</title>
     
-    <!-- 載入外部套件：jQuery, Turn.js, PDF.js, 與圖示庫 FontAwesome -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3/turn.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        /* FlipHTML5 經典深色高質感背景 */
         html, body {
             margin: 0;
             padding: 0;
@@ -24,25 +22,37 @@
             flex-direction: column;
         }
 
-        /* 主畫面區塊 */
+        /* 主畫面區塊：允許內容過大時出現捲動軸 */
         .container {
             flex: 1;
+            overflow: auto; 
             display: flex;
             justify-content: center;
             align-items: center;
             position: relative;
+            padding: 40px;
         }
 
-        /* 仿 FlipHTML5 的書本立體陰影 */
+        /* 💡 縮放核心：用來撐開滾動範圍的包裝盒 (尺寸會隨 JS 動態改變) */
+        #book-wrapper {
+            width: 848px;  /* A4 雙頁預設總寬 */
+            height: 600px; /* 預設總高 */
+            position: relative;
+            margin: auto; /* 確保置中 */
+        }
+
+        /* 📄 A4 雙頁立體書本本體 */
         #flipbook {
-            width: 1000px;
+            width: 848px;
             height: 600px;
             box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
-            display: none; /* 載入完才顯示 */
+            display: none; 
+            transition: transform 0.1s ease-out; /* 讓縮放更平滑 */
         }
         
+        /* 📄 A4 單頁精準比例：424 x 600 */
         .page {
-            width: 500px;
+            width: 424px;
             height: 600px;
             background-color: white;
         }
@@ -53,16 +63,16 @@
             display: block;
         }
 
-        /* 下方精美控制列 (Toolbar) */
+        /* 下方控制列 */
         .toolbar {
             height: 60px;
-            background: rgba(20, 20, 20, 0.85);
+            background: rgba(20, 20, 20, 0.9);
             backdrop-filter: blur(10px);
             border-top: 1px solid rgba(255,255,255,0.1);
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
             color: #ccc;
             user-select: none;
             z-index: 10;
@@ -83,13 +93,27 @@
             color: #fff;
             background: rgba(255, 255, 255, 0.1);
         }
+        
+        /* 縮放專用按鈕樣式 */
+        .btn-zoom {
+            color: #00adb5;
+        }
+        .btn-zoom:hover {
+            color: #00fff6;
+        }
 
         .page-info {
             font-size: 14px;
             letter-spacing: 1px;
+            margin: 0 10px;
         }
 
-        /* Loading 動畫 */
+        .divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255,255,255,0.2);
+        }
+
         #loading {
             position: absolute;
             color: #fff;
@@ -105,18 +129,17 @@
 </head>
 <body>
 
-    <!-- 主呈現區 -->
     <div class="container">
         <div id="loading">
             <i class="fas fa-spinner fa-spin"></i>
-            <div>載入中請稍候...</div>
+            <div>載入中...</div>
         </div>
         
-        <!-- 3D 書本主體 -->
-        <div id="flipbook"></div>
+        <div id="book-wrapper">
+            <div id="flipbook"></div>
+        </div>
     </div>
 
-    <!-- 下方 FlipHTML5 風格控制列 -->
     <div class="toolbar">
         <button class="btn" id="first-page" title="回到封面"><i class="fas fa-angles-left"></i></button>
         <button class="btn" id="prev-page" title="上一頁"><i class="fas fa-chevron-left"></i></button>
@@ -125,33 +148,43 @@
         
         <button class="btn" id="next-page" title="下一頁"><i class="fas fa-chevron-right"></i></button>
         <button class="btn" id="last-page" title="移至封底"><i class="fas fa-angles-right"></i></button>
+        
+        <div class="divider"></div>
+        
+        <button class="btn btn-zoom" id="zoom-out" title="縮小"><i class="fas fa-magnifying-glass-minus"></i></button>
+        <button class="btn btn-zoom" id="zoom-in" title="放大"><i class="fas fa-magnifying-glass-plus"></i></button>
+        
+        <div class="divider"></div>
+        
         <button class="btn" id="fullscreen" title="全螢幕切換"><i class="fas fa-expand"></i></button>
     </div>
 
     <script>
-        // 初始化 PDF.js Worker
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        // ⚠️ 請確保你的 PDF 檔名與路徑正確（這裡預設放在根目錄的 my-book.pdf）
         const pdfUrl = 'DLC.pdf'; 
+        
+        // 📐 為了符合直式 A4 (1:1.414)，重新精準計算的基礎尺寸
+        const baseWidth = 848;  // 雙頁總寬 (424 * 2)
+        const baseHeight = 600; // 總高
 
         pdfjsLib.getDocument(pdfUrl).promise.then(async function(pdf) {
             const totalPages = pdf.numPages;
             $('#total-pages').text(totalPages);
             const $flipbook = $('#flipbook');
 
-            // 核心：利用 PDF.js 把每一頁偷偷畫到 canvas 上並塞進書本裡
             for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
                 const $pageDiv = $('<div class="page"></div>');
                 if(pageNum === 1 || pageNum === totalPages) {
-                    $pageDiv.addClass('hard'); // 封面與封底設定為硬皮特效
+                    $pageDiv.addClass('hard'); 
                 }
                 const canvas = document.createElement('canvas');
                 $pageDiv.append(canvas);
                 $flipbook.append($pageDiv);
 
                 const page = await pdf.getPage(pageNum);
-                const viewport = page.getViewport({ scale: 1.5 }); // 調整清晰度
+                // 💡 將渲染倍率提高到 2.0，確保使用者放大看時文字依然清晰不模糊
+                const viewport = page.getViewport({ scale: 2.0 }); 
                 const context = canvas.getContext('2d');
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
@@ -160,15 +193,16 @@
                 await page.render(renderContext).promise;
             }
 
-            // 載入完成，隱藏 Loading 並初始化 Turn.js
             $('#loading').hide();
+            
+            // 初始化 Turn.js (套用 A4 尺寸)
             $flipbook.show().turn({
-                width: 1000,      // 雙頁總寬度
-                height: 600,     // 總高度
+                width: baseWidth,      
+                height: baseHeight,     
                 autoCenter: true,
-                elevation: 50,   // 翻頁時的角度拉抬感
-                duration: 1000,  // 翻頁動畫速度 (毫秒)
-                gradients: true, // 啟用翻頁時的陰影漸層（超重要，立體感來源！）
+                elevation: 50,   
+                duration: 800,  
+                gradients: true, 
                 when: {
                     turned: function(event, page, view) {
                         $('#current-page').text(page);
@@ -176,25 +210,56 @@
                 }
             });
 
-            // --- 控制列按鈕功能綁定 ---
+            // --- 🔍 放大縮小核心邏輯 ---
+            let zoomLevel = 1.0;
+            const maxZoom = 2.0; // 最大放大 2 倍
+            const minZoom = 1.0; // 最小 1 倍
+            const zoomStep = 0.2; // 每次縮放的幅度
+
+            function applyZoom() {
+                // 1. 縮放實體書本
+                $('#flipbook').css({
+                    'transform': `scale(${zoomLevel})`,
+                    'transform-origin': 'top left'
+                });
+                
+                // 2. 同步撐大外層包裝盒，網頁才會正確產生對應大小的捲動軸
+                $('#book-wrapper').css({
+                    'width': (baseWidth * zoomLevel) + 'px',
+                    'height': (baseHeight * zoomLevel) + 'px'
+                });
+            }
+
+            $('#zoom-in').click(function() {
+                if (zoomLevel < maxZoom) {
+                    zoomLevel += zoomStep;
+                    applyZoom();
+                }
+            });
+
+            $('#zoom-out').click(function() {
+                if (zoomLevel > minZoom) {
+                    zoomLevel -= zoomStep;
+                    applyZoom();
+                }
+            });
+
+            // --- 其他控制功能 ---
             $('#first-page').click(function() { $flipbook.turn('page', 1); });
             $('#last-page').click(function() { $flipbook.turn('page', totalPages); });
             $('#prev-page').click(function() { $flipbook.turn('previous'); });
             $('#next-page').click(function() { $flipbook.turn('next'); });
             
-            // 全螢幕功能
             $('#fullscreen').click(function() {
                 if (!document.fullscreenElement) {
                     document.documentElement.requestFullscreen();
                 } else {
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    }
+                    if (document.exitFullscreen) { document.exitFullscreen(); }
                 }
             });
 
         }).catch(function(error) {
-            $('#loading').html('<i class="fas fa-exclamation-triangle" style="color:ff4a4a;"></i><br>PDF 載入失敗，請檢查檔名是否為 my-book.pdf');
+            $('#loading').html('<i class="fas fa-exclamation-triangle" style="color:ff4a4a;"></i><br>PDF 載入失敗');
             console.error(error);
         });
     </script>
