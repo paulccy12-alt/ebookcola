@@ -295,7 +295,6 @@
     </div>
 
     <script>
-        // 偵測全域 JS 錯誤（例如 CDN 沒載入成功）
         window.onerror = function(msg, url, line) {
             showError('JavaScript 執行錯誤: ' + msg + '<br>請檢查網路連線或是否正確引入套件。');
             return false;
@@ -306,14 +305,13 @@
             $('#loading-text').html(htmlContent);
         }
 
-        // 檢查是否直接用 file:// 開啟
         if (window.location.protocol === 'file:') {
             setTimeout(() => {
                 showError('偵測到您直接雙擊打開了 HTML 檔案。<br>' +
                           '由於瀏覽器的安全隱私限制（CORS），無法直接讀取本機 PDF。<br>' +
                           '<div class="error-hint"><b>💡 解決方法：</b><br>' +
                           '1. 請使用 VS Code 的 <b>Live Server</b> 開啟網頁。<br>' +
-                          '2. 或將網頁與 PDF 檔案上傳到網路伺服器伺服器環境（如 GitHub Pages）再觀看。</div>');
+                          '2. 或將網頁與 PDF 檔案上傳到網路伺服器環境（如 GitHub Pages）再觀看。</div>');
             }, 1000);
         }
 
@@ -345,7 +343,6 @@
         const singlePageWidth = isMobile ? bookWidth : (bookWidth / 2);
         $('head').append(`<style>.page { width: ${singlePageWidth}px !important; height: ${bookHeight}px !important; }</style>`);
 
-        // 載入 PDF
         if (window.location.protocol !== 'file:') {
             pdfjsLib.getDocument(pdfUrl).promise.then(async function(pdf) {
                 const totalPages = pdf.numPages;
@@ -442,6 +439,7 @@
                     $flipbook.turn('page', targetPage);
                 });
 
+                // ─── 放大縮小與小手拖拉聯動邏輯 ───
                 let zoomLevel = 1.0;
                 const maxZoom = 2.5; 
                 const minZoom = 1.0; 
@@ -453,52 +451,4 @@
                         'transform-origin': 'top center' 
                     });
                     $('#book-wrapper').css({
-                        'width': (bookWidth * zoomLevel) + 'px',
-                        'height': (bookHeight * zoomLevel) + 'px'
-                    });
-                }
-
-                $('#zoom-in').click(function() {
-                    if (zoomLevel < maxZoom) { zoomLevel += zoomStep; applyZoom(); }
-                });
-                $('#zoom-out').click(function() {
-                    if (zoomLevel > minZoom) { zoomLevel -= zoomStep; applyZoom(); }
-                });
-
-                $('#first-page').click(function() { $flipbook.turn('page', 1); });
-                $('#last-page').click(function() { $flipbook.turn('page', totalPages); });
-                $('#prev-page').click(function() { $flipbook.turn('previous'); });
-                $('#next-page').click(function() { $flipbook.turn('next'); });
-                
-                $('#fullscreen').click(function() {
-                    if (!document.fullscreenElement) {
-                        document.documentElement.requestFullscreen();
-                    } else {
-                        if (document.exitFullscreen) { document.exitFullscreen(); }
-                    }
-                });
-
-                $('#toggle-thumbnails').click(function() {
-                    const $thumbContainer = $('#thumbnail-container');
-                    if ($thumbContainer.css('display') === 'none') {
-                        $thumbContainer.css('display', 'flex');
-                        setTimeout(() => {
-                            const $active = $('.thumb-item.active');
-                            if ($active.length) {
-                                $active[0].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                            }
-                        }, 100);
-                    } else {
-                        $thumbContainer.css('display', 'none');
-                    }
-                });
-
-            }).catch(function(error) {
-                showError('PDF 載入失敗！<br>請檢查是否確實有 <b>DLC.pdf</b> 檔案，且與網頁放在同個資料夾。<br><span style="font-size:11px; color:#aaa;">Error: ' + error.message + '</span>');
-                console.error(error);
-            });
-        }
-    </script>
-
-</body>
-</html>
+                        'width': (bookWidth * zoomLevel
