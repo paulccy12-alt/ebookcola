@@ -15,7 +15,7 @@
             margin: 0;
             padding: 0;
             height: 100%;
-            background: radial-gradient(circle, #333333 0%, #111111 100%);
+            background: radial-gradient(circle, #444444 0%, #111111 100%);
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
             overflow: hidden;
             display: flex;
@@ -24,14 +24,13 @@
 
         h1 {
             color: #fff;
-            font-size: 16px;
+            font-size: 18px;
             text-align: center;
-            margin: 8px 0 2px 0;
+            margin: 10px 0 0 0;
             font-weight: 300;
-            letter-spacing: 1px;
         }
 
-        /* 主書本顯示區 */
+        /* 主畫面區塊：允許內容過大時捲動 */
         .container {
             flex: 1;
             overflow: auto; 
@@ -40,7 +39,7 @@
             align-items: center;
             position: relative;
             padding: 10px;
-            user-select: none;
+            user-select: none; /* 防止拖曳時選取到藍色文字塊 */
         }
 
         #book-wrapper {
@@ -49,7 +48,7 @@
         }
 
         #flipbook {
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
             display: none; 
             transition: transform 0.1s ease-out;
         }
@@ -64,99 +63,17 @@
             display: block;
         }
 
-        /* 🎞️ 仿截圖：橫向微縮圖導覽列外殼 */
-        .thumbnail-bar-container {
-            height: 95px;
-            background: rgba(20, 20, 20, 0.95);
-            display: flex;
-            align-items: center;
-            padding: 0 10px;
-            border-top: 1px solid rgba(255,255,255,0.08);
-            z-index: 10;
-        }
-
-        /* 微縮圖捲動軌道 */
-        .thumbnail-track {
-            flex: 1;
-            overflow-x: auto;
-            white-space: nowrap;
-            scroll-behavior: smooth;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 5px 0;
-        }
-        /* 隱藏原生捲動軸讓視覺更乾淨 */
-        .thumbnail-track::-webkit-scrollbar { display: none; }
-        .thumbnail-track { -ms-overflow-style: none; scrollbar-width: none; }
-
-        /* 單個微縮圖元件 (完美 A4 比例不變形) */
-        .thumb-item {
-            display: inline-block;
-            height: 72px;
-            width: 51px; /* 72 / 1.414 確保 A4 比例 */
-            background: #2b2b2b;
-            border: 2px solid transparent;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-            flex-shrink: 0;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-            overflow: hidden;
-        }
-        .thumb-item:hover {
-            border-color: #666;
-        }
-        .thumb-item canvas {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        /* 🔴 仿截圖：當前閱讀頁面的「紅色高亮邊框」 */
-        .thumb-item.active {
-            border-color: #ff3b30; 
-            box-shadow: 0 0 12px rgba(255, 59, 48, 0.6);
-            transform: scale(1.03);
-        }
-
-        /* 微縮圖下方的小頁碼 */
-        .thumb-page-num {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(0, 0, 0, 0.65);
-            color: #fff;
-            font-size: 9px;
-            text-align: center;
-            padding: 1px 0;
-            font-family: monospace;
-        }
-
-        /* 導覽列兩側的 `<` 與 `>` 乾淨箭頭 */
-        .thumb-nav-btn {
-            background: none;
-            border: none;
-            color: #777;
-            font-size: 18px;
-            cursor: pointer;
-            padding: 15px 8px;
-            transition: color 0.2s;
-        }
-        .thumb-nav-btn:hover { color: #fff; }
-
-        /* 下方工具列 */
+        /* 下方控制列 */
         .toolbar {
-            height: 50px;
-            background: rgba(15, 15, 15, 0.98);
-            border-top: 1px solid rgba(255,255,255,0.05);
+            height: 60px;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255,255,255,0.1);
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 15px;
-            color: #bbb;
+            gap: 12px;
+            color: #ccc;
             user-select: none;
             z-index: 10;
             padding: 0 15px;
@@ -165,58 +82,101 @@
         .btn {
             background: none;
             border: none;
-            color: #aaa;
-            font-size: 15px;
+            color: #ccc;
+            font-size: 16px;
             cursor: pointer;
-            padding: 8px 10px;
-            border-radius: 4px;
-            transition: all 0.2s;
+            padding: 10px 12px;
+            border-radius: 5px;
+            transition: all 0.2s ease;
         }
+
         .btn:hover {
             color: #fff;
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.1);
         }
+        
         .btn-zoom { color: #00adb5; }
         .btn-zoom:hover { color: #00fff6; }
 
         .page-info {
             font-size: 13px;
-            font-weight: bold;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
             white-space: nowrap;
-            min-width: 70px;
-            text-align: center;
         }
 
+        /* 💾 智慧進度條拖拉區塊 */
         .slider-container {
             flex: 1;
-            max-width: 200px;
+            max-width: 250px;
             display: flex;
             align-items: center;
+            margin: 0 5px;
         }
+
         #page-slider {
             width: 100%;
-            height: 4px;
+            height: 6px;
             background: #333;
-            border-radius: 2px;
+            border-radius: 3px;
             outline: none;
-            accent-color: #ff3b30;
+            accent-color: #00adb5; /* 現代瀏覽器拉桿顏色 */
             cursor: pointer;
         }
 
-        .divider { width: 1px; height: 14px; background: rgba(255,255,255,0.15); }
+        /* 📄 浮動微縮預覽視窗 (絕對不變形) */
+        #preview-container {
+            position: absolute;
+            bottom: 75px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 15, 0.9);
+            border: 2px solid #00adb5;
+            border-radius: 8px;
+            padding: 6px;
+            display: none;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+            z-index: 100;
+            pointer-events: none; /* 穿透事件，防止阻擋滑鼠 */
+            text-align: center;
+        }
+
+        #preview-canvas {
+            max-width: 110px;
+            max-height: 155px; /* 精準限制高度，寬度隨 PDF 比例自動縮放，絕不變形 */
+            display: block;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        #preview-page-num {
+            color: #00adb5;
+            font-size: 12px;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        .divider {
+            width: 1px;
+            height: 15px;
+            background: rgba(255,255,255,0.2);
+        }
 
         #loading {
             position: absolute;
             color: #fff;
+            font-size: 16px;
             text-align: center;
         }
-        #loading i { font-size: 30px; margin-bottom: 10px; color: #ff3b30; }
+        #loading i {
+            font-size: 35px;
+            margin-bottom: 15px;
+            color: #00adb5;
+        }
 
         @media (max-width: 767px) {
-            .slider-container, .divider { display: none; }
-            .thumbnail-bar-container { height: 80px; }
-            .thumb-item { height: 58px; width: 41px; }
+            #first-page, #last-page, .divider { display: none; }
+            .slider-container { max-width: 130px; }
+            h1 { font-size: 15px; }
         }
     </style>
 </head>
@@ -229,19 +189,19 @@
             <i class="fas fa-spinner fa-spin"></i>
             <div>載入中...</div>
         </div>
+        
         <div id="book-wrapper">
             <div id="flipbook"></div>
         </div>
     </div>
 
-    <div class="thumbnail-bar-container">
-        <button class="thumb-nav-btn" id="thumb-prev"><i class="fas fa-chevron-left"></i></button>
-        <div class="thumbnail-track" id="thumbnail-track">
-            </div>
-        <button class="thumb-nav-btn" id="thumb-next"><i class="fas fa-chevron-right"></i></button>
+    <div id="preview-container">
+        <canvas id="preview-canvas"></canvas>
+        <div id="preview-page-num">第 1 頁</div>
     </div>
 
     <div class="toolbar">
+        <button class="btn" id="first-page" title="回到封面"><i class="fas fa-angles-left"></i></button>
         <button class="btn" id="prev-page" title="上一頁"><i class="fas fa-chevron-left"></i></button>
         
         <div class="slider-container">
@@ -251,25 +211,29 @@
         <span class="page-info"><span id="current-page">1</span> / <span id="total-pages">0</span></span>
         
         <button class="btn" id="next-page" title="下一頁"><i class="fas fa-chevron-right"></i></button>
+        <button class="btn" id="last-page" title="移至封底"><i class="fas fa-angles-right"></i></button>
         
         <div class="divider"></div>
+        
         <button class="btn btn-zoom" id="zoom-out" title="縮小"><i class="fas fa-magnifying-glass-minus"></i></button>
         <button class="btn btn-zoom" id="zoom-in" title="放大"><i class="fas fa-magnifying-glass-plus"></i></button>
+        
         <div class="divider"></div>
+        
         <button class="btn" id="fullscreen" title="全螢幕"><i class="fas fa-expand"></i></button>
     </div>
 
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        const pdfUrl = 'DLC.pdf'; // 👈 記得確保你的 PDF 檔名正確
+        const pdfUrl = 'DLC.pdf'; 
         
         const isMobile = window.innerWidth < 768;
         let bookWidth, bookHeight;
 
         if (isMobile) {
             const maxWidth = window.innerWidth - 20;   
-            const maxHeight = window.innerHeight - 180; 
+            const maxHeight = window.innerHeight - 130; 
             bookWidth = maxWidth;
             bookHeight = bookWidth * 1.414; 
             if (bookHeight > maxHeight) {
@@ -285,53 +249,34 @@
         const singlePageWidth = isMobile ? bookWidth : (bookWidth / 2);
         $('head').append(`<style>.page { width: ${singlePageWidth}px !important; height: ${bookHeight}px !important; }</style>`);
 
-        // 載入 PDF 主執行緒
+        let globalPdf = null; // 儲存 pdf 物件供預覽功能使用
+
+        // 載入 PDF
         pdfjsLib.getDocument(pdfUrl).promise.then(async function(pdf) {
+            globalPdf = pdf;
             const totalPages = pdf.numPages;
             $('#total-pages').text(totalPages);
-            $('#page-slider').attr('max', totalPages);
+            $('#page-slider').attr('max', totalPages); // 設定拉桿最大頁數
             
             const $flipbook = $('#flipbook');
-            const $thumbTrack = $('#thumbnail-track');
 
-            // --- ⚙️ 1. 產生主要翻頁面 ＆ 產生下方橫向微縮圖元件 ---
             for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-                // A. 建立書本頁面
                 const $pageDiv = $('<div class="page"></div>');
-                if(!isMobile && (pageNum === 1 || pageNum === totalPages)) { $pageDiv.addClass('hard'); }
-                const mainCanvas = document.createElement('canvas');
-                $pageDiv.append(mainCanvas);
+                if(!isMobile && (pageNum === 1 || pageNum === totalPages)) {
+                    $pageDiv.addClass('hard'); 
+                }
+                const canvas = document.createElement('canvas');
+                $pageDiv.append(canvas);
                 $flipbook.append($pageDiv);
 
-                // B. 建立微縮導覽列單元
-                const $thumbItem = $(`
-                    <div class="thumb-item" data-page="${pageNum}">
-                        <canvas id="thumb-canvas-${pageNum}"></canvas>
-                        <div class="thumb-page-num">${pageNum}</div>
-                    </div>
-                `);
-                $thumbTrack.append($thumbItem);
-
-                // 點擊微縮圖直接智慧跳頁
-                $thumbItem.click(function() {
-                    $flipbook.turn('page', pageNum);
-                });
-
-                // C. 渲染主頁面 (高解析度)
                 const page = await pdf.getPage(pageNum);
-                const viewport = page.getViewport({ scale: 1.8 }); 
-                const context = mainCanvas.getContext('2d');
-                mainCanvas.height = viewport.height;
-                mainCanvas.width = viewport.width;
-                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                const viewport = page.getViewport({ scale: 2.0 }); 
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
 
-                // D. 非同步渲染微縮圖 (超低解析度、秒開、完全不卡主畫面)
-                const thumbCanvas = document.getElementById(`thumb-canvas-${pageNum}`);
-                const thumbContext = thumbCanvas.getContext('2d');
-                const thumbViewport = page.getViewport({ scale: 0.12 });
-                thumbCanvas.width = thumbViewport.width;
-                thumbCanvas.height = thumbViewport.width * 1.414; // 鎖定比例絕不變形
-                page.render({ canvasContext: thumbContext, viewport: thumbViewport });
+                const renderContext = { canvasContext: context, viewport: viewport };
+                await page.render(renderContext).promise;
             }
 
             $('#loading').hide();
@@ -342,59 +287,79 @@
                 height: bookHeight,     
                 display: isMobile ? 'single' : 'double', 
                 autoCenter: true,
-                duration: 500,  
+                elevation: isMobile ? 0 : 50, 
+                duration: 600,  
                 gradients: true, 
                 when: {
                     turned: function(event, page, view) {
-                        // 同步拉桿位置
-                        $('#page-slider').val(page); 
-                        
-                        // 📄 仿截圖：智慧格式化跨頁文字 (例：6-7 / 30)
-                        if (!isMobile && view[0] !== 0 && view[1] !== 0 && view[0] !== view[1]) {
-                            $('#current-page').text(`${view[0]}-${view[1]}`);
-                        } else {
-                            $('#current-page').text(page);
-                        }
-
-                        // 🔴 同步高亮紅色邊框
-                        $('.thumb-item').removeClass('active');
-                        view.forEach(p => {
-                            if (p !== 0) {
-                                const $activeThumb = $(`.thumb-item[data-page="${p}"]`);
-                                $activeThumb.addClass('active');
-
-                                // 智慧置中功能：當翻頁時，下方軌道會自動將紅框圖平滑滑動到中央視角
-                                if (p === view[0]) {
-                                    const trackEl = document.getElementById('thumbnail-track');
-                                    const thumbEl = $activeThumb[0];
-                                    if (thumbEl) {
-                                        const targetScroll = thumbEl.offsetLeft - (trackEl.clientWidth / 2) + (thumbEl.clientWidth / 2);
-                                        trackEl.scrollTo({ left: targetScroll, behavior: 'smooth' });
-                                    }
-                                }
-                            }
-                        });
+                        $('#current-page').text(page);
+                        $('#page-slider').val(page); // 翻頁時同步拉桿位置
                     }
                 }
             });
 
-            // 微縮圖導覽列的兩側 `<` 與 `>` 手動捲動功能
-            $('#thumb-prev').click(function() {
-                document.getElementById('thumbnail-track').scrollBy({ left: -200, behavior: 'smooth' });
-            });
-            $('#thumb-next').click(function() {
-                document.getElementById('thumbnail-track').scrollBy({ left: 200, behavior: 'smooth' });
+            // --- ⚙️ 1. 進度條拖拉與不變形預覽核心邏輯 ---
+            let previewRenderTask = null;
+            let lastPreviewPage = 0;
+
+            function renderPreviewThumb(pageNum) {
+                if (pageNum === lastPreviewPage || !globalPdf) return;
+                lastPreviewPage = pageNum;
+
+                // 如果前一個預覽還在渲染，先取消它，避免累加卡頓
+                if (previewRenderTask) { previewRenderTask.cancel(); }
+
+                globalPdf.getPage(pageNum).then(function(page) {
+                    const canvas = document.getElementById('preview-canvas');
+                    const context = canvas.getContext('2d');
+                    
+                    // 以低解析度渲染微縮圖
+                    const viewport = page.getViewport({ scale: 0.25 });
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.width * 1.414; // 強制標準 A4 渲染比例，絕不變形
+
+                    const renderContext = { canvasContext: context, viewport: viewport };
+                    previewRenderTask = page.render(renderContext);
+                    previewRenderTask.promise.catch(function(err) { /* 忽略取消錯誤 */ });
+                });
+
+                $('#preview-page-num').text(`第 ${pageNum} 頁`);
+            }
+
+            // 監聽拉桿拖移中
+            $('#page-slider').on('input', function() {
+                const pageNum = parseInt($(this).val());
+                renderPreviewThumb(pageNum);
+
+                // 計算動態跟隨：讓預覽視窗完美的跟著拉桿按鈕移動
+                const slider = $(this);
+                const width = slider.width();
+                const min = parseInt(slider.attr('min'));
+                const max = parseInt(slider.attr('max'));
+                const percent = (slider.val() - min) / (max - min);
+                const thumbPosition = slider.offset().left + (width * percent);
+
+                $('#preview-container').css({ 'left': thumbPosition + 'px', 'display': 'block' });
             });
 
-            // 進度條拉桿手動釋放時跳頁
+            // 監聽釋放拉桿：確認放開時才正式跳頁
             $('#page-slider').on('change', function() {
-                $flipbook.turn('page', parseInt($(this).val()));
+                const pageNum = parseInt($(this).val());
+                $flipbook.turn('page', pageNum);
+            });
+
+            // 隱藏預覽視窗
+            $('#page-slider').on('mouseup touchend mouseleave', function() {
+                $('#preview-container').hide();
+                lastPreviewPage = 0;
             });
 
 
             // --- 🔍 2. 中心點視角縮放 + 小手直接抓取移動核心邏輯 ---
             let zoomLevel = 1.0;
-            const maxZoom = 2.5, minZoom = 1.0, zoomStep = 0.3; 
+            const maxZoom = 2.5; 
+            const minZoom = 1.0; 
+            const zoomStep = 0.3; 
             const $container = $('.container');
 
             function applyViewportCenteredZoom(delta) {
@@ -404,37 +369,50 @@
                 if (zoomLevel < minZoom) zoomLevel = minZoom;
                 if (oldZoom === zoomLevel) return;
 
+                // A. 抓取縮放前，使用者眼睛正在看的「中心點」相對位置
                 const currentCenterX = $container.scrollLeft() + $container.width() / 2;
                 const currentCenterY = $container.scrollTop() + $container.height() / 2;
 
-                $('#flipbook').css({ 'transform': `scale(${zoomLevel})`, 'transform-origin': 'top left' });
-                $('#book-wrapper').css({ 'width': (bookWidth * zoomLevel) + 'px', 'height': (bookHeight * zoomLevel) + 'px' });
+                // B. 進行畫面等比放大 (改為 top left 起點便於精準計算捲動軸)
+                $('#flipbook').css({
+                    'transform': `scale(${zoomLevel})`,
+                    'transform-origin': 'top left'
+                });
+                $('#book-wrapper').css({
+                    'width': (bookWidth * zoomLevel) + 'px',
+                    'height': (bookHeight * zoomLevel) + 'px'
+                });
 
+                // C. 關鍵重算：將捲動軸移至對應的比例，完美實現「從中央放大」
                 const ratio = zoomLevel / oldZoom;
                 $container.scrollLeft(currentCenterX * ratio - $container.width() / 2);
                 $container.scrollTop(currentCenterY * ratio - $container.height() / 2);
 
+                // D. 智慧狀態切換：放大時開啟小手抓取，並「鎖定」Turn.js 翻頁，避免拖曳時誤翻
                 if (zoomLevel > 1.0) {
-                    $flipbook.turn('disable', true); // 放大時鎖定翻頁，防拖曳誤翻
-                    $container.css('cursor', 'grab');
+                    $flipbook.turn('disable', true); // 鎖定滑鼠翻頁
+                    $container.css('cursor', 'grab'); // 顯示小手
                 } else {
-                    $flipbook.turn('disable', false); // 縮回時解鎖
+                    $flipbook.turn('disable', false); // 解鎖翻頁
                     $container.css('cursor', 'default');
-                    $container.scrollLeft(0).scrollTop(0);
+                    $container.scrollLeft(0).scrollTop(0); // 縮回 1 倍時回正
                 }
             }
 
             $('#zoom-in').click(function() { applyViewportCenteredZoom(zoomStep); });
             $('#zoom-out').click(function() { applyViewportCenteredZoom(-zoomStep); });
 
-            // 🖐️ 滑鼠小手抓取拖曳
+            // 🖐️ 滑鼠小手拖曳（Drag to Scroll）邏輯
             let isDragging = false;
             let startX, startY, scrollLeft, scrollTop;
 
             $container.on('mousedown', function(e) {
                 if (zoomLevel <= 1.0) return;
+                // 排除點擊到控制列的情況
+                if ($(e.target).closest('.toolbar').length) return;
+
                 isDragging = true;
-                $container.css('cursor', 'grabbing');
+                $container.css('cursor', 'grabbing'); // 抓取時變成握拳小手
                 startX = e.pageX - $container.offset().left;
                 startY = e.pageY - $container.offset().top;
                 scrollLeft = $container.scrollLeft();
@@ -446,6 +424,63 @@
                 e.preventDefault();
                 const x = e.pageX - $container.offset().left;
                 const y = e.pageY - $container.offset().top;
-                $container.scrollLeft(scrollLeft - (x - startX) * 1.5);
-                $container.scrollTop(scrollTop - (y - startY) * 1.5);
+                const walkX = (x - startX) * 1.5; // 1.5 為移動速度靈敏度
+                const walkY = (y - startY) * 1.5;
+                $container.scrollLeft(scrollLeft - walkX);
+                $container.scrollTop(scrollTop - walkY);
             });
+
+            $(window).on('mouseup', function() {
+                if (isDragging) {
+                    isDragging = false;
+                    $container.css('cursor', zoomLevel > 1.0 ? 'grab' : 'default');
+                }
+            });
+
+            // 📱 手機版單指拖曳（Touch to Scroll）支援
+            $container.on('touchstart', function(e) {
+                if (zoomLevel <= 1.0) return;
+                isDragging = true;
+                const touch = e.originalEvent.touches[0];
+                startX = touch.pageX - $container.offset().left;
+                startY = touch.pageY - $container.offset().top;
+                scrollLeft = $container.scrollLeft();
+                scrollTop = $container.scrollTop();
+            });
+
+            $container.on('touchmove', function(e) {
+                if (!isDragging) return;
+                const touch = e.originalEvent.touches[0];
+                const x = touch.pageX - $container.offset().left;
+                const y = touch.pageY - $container.offset().top;
+                const walkX = (x - startX) * 1.5;
+                const walkY = (y - startY) * 1.5;
+                $container.scrollLeft(scrollLeft - walkX);
+                $container.scrollTop(scrollTop - walkY);
+            });
+
+            $container.on('touchend', function() { isDragging = false; });
+
+
+            // --- 其他基礎控制 ---
+            $('#first-page').click(function() { $flipbook.turn('page', 1); });
+            $('#last-page').click(function() { $flipbook.turn('page', totalPages); });
+            $('#prev-page').click(function() { $flipbook.turn('previous'); });
+            $('#next-page').click(function() { $flipbook.turn('next'); });
+            
+            $('#fullscreen').click(function() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                } else {
+                    if (document.exitFullscreen) { document.exitFullscreen(); }
+                }
+            });
+
+        }).catch(function(error) {
+            $('#loading').html('<i class="fas fa-exclamation-triangle" style="color:ff4a4a;"></i><br>PDF 載入失敗');
+            console.error(error);
+        });
+    </script>
+
+</body>
+</html>
