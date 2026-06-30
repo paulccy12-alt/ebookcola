@@ -22,7 +22,15 @@
             flex-direction: column;
         }
 
-        /* 主畫面區塊：允許內容過大時出現捲動軸 */
+        h1 {
+            color: #fff;
+            font-size: 18px;
+            text-align: center;
+            margin: 10px 0 0 0;
+            font-weight: 300;
+        }
+
+        /* 主畫面區塊 */
         .container {
             flex: 1;
             overflow: auto; 
@@ -30,30 +38,22 @@
             justify-content: center;
             align-items: center;
             position: relative;
-            padding: 40px;
+            padding: 10px; /* 手機版縮小間距 */
         }
 
-        /* 💡 縮放核心：用來撐開滾動範圍的包裝盒 (尺寸會隨 JS 動態改變) */
+        /* 包裝盒與書本本體：改由 JS 動態控制寬高，移除 CSS 寫死尺寸 */
         #book-wrapper {
-            width: 848px;  /* A4 雙頁預設總寬 */
-            height: 600px; /* 預設總高 */
             position: relative;
-            margin: auto; /* 確保置中 */
+            margin: auto;
         }
 
-        /* 📄 A4 雙頁立體書本本體 */
         #flipbook {
-            width: 848px;
-            height: 600px;
-            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
             display: none; 
-            transition: transform 0.1s ease-out; /* 讓縮放更平滑 */
+            transition: transform 0.1s ease-out;
         }
         
-        /* 📄 A4 單頁精準比例：424 x 600 */
         .page {
-            width: 424px;
-            height: 600px;
             background-color: white;
         }
 
@@ -66,25 +66,26 @@
         /* 下方控制列 */
         .toolbar {
             height: 60px;
-            background: rgba(20, 20, 20, 0.9);
+            background: rgba(20, 20, 20, 0.95);
             backdrop-filter: blur(10px);
             border-top: 1px solid rgba(255,255,255,0.1);
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
             color: #ccc;
             user-select: none;
             z-index: 10;
+            padding: 0 10px;
         }
 
         .btn {
             background: none;
             border: none;
             color: #ccc;
-            font-size: 18px;
+            font-size: 16px;
             cursor: pointer;
-            padding: 10px 15px;
+            padding: 10px 12px;
             border-radius: 5px;
             transition: all 0.2s ease;
         }
@@ -94,45 +95,50 @@
             background: rgba(255, 255, 255, 0.1);
         }
         
-        /* 縮放專用按鈕樣式 */
-        .btn-zoom {
-            color: #00adb5;
-        }
-        .btn-zoom:hover {
-            color: #00fff6;
-        }
+        .btn-zoom { color: #00adb5; }
+        .btn-zoom:hover { color: #00fff6; }
 
         .page-info {
-            font-size: 14px;
+            font-size: 13px;
             letter-spacing: 1px;
-            margin: 0 10px;
+            white-space: nowrap;
         }
 
         .divider {
             width: 1px;
-            height: 20px;
+            height: 15px;
             background: rgba(255,255,255,0.2);
         }
 
         #loading {
             position: absolute;
             color: #fff;
-            font-size: 18px;
+            font-size: 16px;
             text-align: center;
         }
         #loading i {
-            font-size: 40px;
+            font-size: 35px;
             margin-bottom: 15px;
             color: #00adb5;
+        }
+
+        /* 📱 RWD 手機版微調：隱藏部分不重要按鈕，節省空間 */
+        @media (max-width: 767px) {
+            #first-page, #last-page {
+                display: none; 
+            }
+            h1 { font-size: 15px; }
         }
     </style>
 </head>
 <body>
 
+    <h1>2026 產品型錄</h1>
+
     <div class="container">
         <div id="loading">
             <i class="fas fa-spinner fa-spin"></i>
-            <div>載入中...</div>
+            <div>電子型錄加載中...</div>
         </div>
         
         <div id="book-wrapper">
@@ -144,7 +150,7 @@
         <button class="btn" id="first-page" title="回到封面"><i class="fas fa-angles-left"></i></button>
         <button class="btn" id="prev-page" title="上一頁"><i class="fas fa-chevron-left"></i></button>
         
-        <span class="page-info">第 <span id="current-page">1</span> 頁 / 共 <span id="total-pages">0</span> 頁</span>
+        <span class="page-info"><span id="current-page">1</span> / <span id="total-pages">0</span></span>
         
         <button class="btn" id="next-page" title="下一頁"><i class="fas fa-chevron-right"></i></button>
         <button class="btn" id="last-page" title="移至封底"><i class="fas fa-angles-right"></i></button>
@@ -156,7 +162,7 @@
         
         <div class="divider"></div>
         
-        <button class="btn" id="fullscreen" title="全螢幕切換"><i class="fas fa-expand"></i></button>
+        <button class="btn" id="fullscreen" title="全螢幕"><i class="fas fa-expand"></i></button>
     </div>
 
     <script>
@@ -164,10 +170,35 @@
 
         const pdfUrl = 'DLC.pdf'; 
         
-        // 📐 為了符合直式 A4 (1:1.414)，重新精準計算的基礎尺寸
-        const baseWidth = 848;  // 雙頁總寬 (424 * 2)
-        const baseHeight = 600; // 總高
+        // ⚙️ 核心邏輯：偵測裝置並動態計算 A4 最完美尺寸
+        const isMobile = window.innerWidth < 768;
+        let bookWidth, bookHeight;
 
+        if (isMobile) {
+            // 手機版：單頁滿版顯示
+            const maxWidth = window.innerWidth - 20;   // 扣除左右邊距
+            const maxHeight = window.innerHeight - 130; // 扣除標題與工具列
+            
+            bookWidth = maxWidth;
+            bookHeight = bookWidth * 1.414; // A4 比例 (高 = 寬 * 1.414)
+            
+            // 如果算出來的高度超出手機螢幕，改以高度為基準回推寬度
+            if (bookHeight > maxHeight) {
+                bookHeight = maxHeight;
+                bookWidth = bookHeight / 1.414;
+            }
+        } else {
+            // 電子版：雙頁顯示 (預設標準尺寸)
+            bookWidth = 848;  
+            bookHeight = 600; 
+        }
+
+        // 動態將計算好的寬高寫入外框與單頁 CSS
+        $('#book-wrapper, #flipbook').css({ 'width': bookWidth + 'px', 'height': bookHeight + 'px' });
+        const singlePageWidth = isMobile ? bookWidth : (bookWidth / 2);
+        $('head').append(`<style>.page { width: ${singlePageWidth}px !important; height: ${bookHeight}px !important; }</style>`);
+
+        // 載入 PDF
         pdfjsLib.getDocument(pdfUrl).promise.then(async function(pdf) {
             const totalPages = pdf.numPages;
             $('#total-pages').text(totalPages);
@@ -175,15 +206,15 @@
 
             for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
                 const $pageDiv = $('<div class="page"></div>');
-                if(pageNum === 1 || pageNum === totalPages) {
-                    $pageDiv.addClass('hard'); 
+                if(!isMobile && (pageNum === 1 || pageNum === totalPages)) {
+                    $pageDiv.addClass('hard'); // 手機版關閉硬皮，避免翻頁計算出錯
                 }
                 const canvas = document.createElement('canvas');
                 $pageDiv.append(canvas);
                 $flipbook.append($pageDiv);
 
                 const page = await pdf.getPage(pageNum);
-                // 💡 將渲染倍率提高到 2.0，確保使用者放大看時文字依然清晰不模糊
+                // 為了手機版放大依然清晰，渲染倍率維持 2.0
                 const viewport = page.getViewport({ scale: 2.0 }); 
                 const context = canvas.getContext('2d');
                 canvas.height = viewport.height;
@@ -195,13 +226,14 @@
 
             $('#loading').hide();
             
-            // 初始化 Turn.js (套用 A4 尺寸)
+            // 初始化 Turn.js
             $flipbook.show().turn({
-                width: baseWidth,      
-                height: baseHeight,     
+                width: bookWidth,      
+                height: bookHeight,     
+                display: isMobile ? 'single' : 'double', // ⭐ 關鍵：手機版單頁，電腦版雙頁
                 autoCenter: true,
-                elevation: 50,   
-                duration: 800,  
+                elevation: isMobile ? 0 : 50, // 手機版降低複雜度，關閉抬角
+                duration: 600,  
                 gradients: true, 
                 when: {
                     turned: function(event, page, view) {
@@ -210,41 +242,31 @@
                 }
             });
 
-            // --- 🔍 放大縮小核心邏輯 ---
+            // --- 放大縮小功能 (手機版同樣支援) ---
             let zoomLevel = 1.0;
-            const maxZoom = 2.0; // 最大放大 2 倍
-            const minZoom = 1.0; // 最小 1 倍
-            const zoomStep = 0.2; // 每次縮放的幅度
+            const maxZoom = 2.5; 
+            const minZoom = 1.0; 
+            const zoomStep = 0.3; 
 
             function applyZoom() {
-                // 1. 縮放實體書本
                 $('#flipbook').css({
                     'transform': `scale(${zoomLevel})`,
-                    'transform-origin': 'top left'
+                    'transform-origin': 'top center' // 改為置中放大，手機體驗較佳
                 });
-                
-                // 2. 同步撐大外層包裝盒，網頁才會正確產生對應大小的捲動軸
                 $('#book-wrapper').css({
-                    'width': (baseWidth * zoomLevel) + 'px',
-                    'height': (baseHeight * zoomLevel) + 'px'
+                    'width': (bookWidth * zoomLevel) + 'px',
+                    'height': (bookHeight * zoomLevel) + 'px'
                 });
             }
 
             $('#zoom-in').click(function() {
-                if (zoomLevel < maxZoom) {
-                    zoomLevel += zoomStep;
-                    applyZoom();
-                }
+                if (zoomLevel < maxZoom) { zoomLevel += zoomStep; applyZoom(); }
             });
-
             $('#zoom-out').click(function() {
-                if (zoomLevel > minZoom) {
-                    zoomLevel -= zoomStep;
-                    applyZoom();
-                }
+                if (zoomLevel > minZoom) { zoomLevel -= zoomStep; applyZoom(); }
             });
 
-            // --- 其他控制功能 ---
+            // --- 控制功能 ---
             $('#first-page').click(function() { $flipbook.turn('page', 1); });
             $('#last-page').click(function() { $flipbook.turn('page', totalPages); });
             $('#prev-page').click(function() { $flipbook.turn('previous'); });
