@@ -5,11 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>可樂旅遊－迪士尼探險號旅遊手冊</title>
     
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3/turn.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <style>
         html, body {
             margin: 0;
@@ -32,7 +27,8 @@
 
         .container {
             flex: 1;
-            overflow: auto; 
+            /* 關鍵修正：改為 hidden，由 CSS translate 接管拖曳，防止瀏覽器鎖死左側捲軸 */
+            overflow: hidden; 
             display: flex;
             justify-content: center;
             align-items: center;
@@ -43,12 +39,13 @@
         #book-wrapper {
             position: relative;
             margin: auto;
+            /* 啟用硬體加速，讓縮放平移更絲滑 */
+            will-change: transform; 
         }
 
         #flipbook {
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
             display: none; 
-            transition: transform 0.1s ease-out;
         }
         
         .page {
@@ -98,7 +95,7 @@
             background: rgba(255, 255, 255, 0.05);
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
             flex-shrink: 0; 
-            min-width: 60px; /* 預防載入前縮圖縮成一團 */
+            min-width: 60px;
             justify-content: center;
             align-items: center;
         }
@@ -228,9 +225,9 @@
             padding: 10px;
             border-radius: 5px;
             text-align: left;
+            line-height: 1.5;
         }
 
-        /* 頁面內部的微型載入轉圈 */
         .page-spinner {
             position: absolute;
             top: 50%; left: 50%;
@@ -248,6 +245,43 @@
             h1 { font-size: 15px; }
         }
     </style>
+
+    <script>
+        function showError(htmlContent) {
+            var icon = document.getElementById('loading-icon');
+            var text = document.getElementById('loading-text');
+            if (icon) {
+                icon.className = 'fas fa-exclamation-triangle';
+                icon.style.color = '#ff4a4a';
+                icon.style.animation = 'none';
+            }
+            if (text) { text.innerHTML = htmlContent; }
+        }
+        function updateLoadingStatus(msg) {
+            var text = document.getElementById('loading-text');
+            if (text) { text.innerHTML = msg; }
+        }
+
+        window.addEventListener('error', function(e) {
+            if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+                var url = e.target.src || e.target.href;
+                showError('<b>網路核心套件載入失敗！</b><br><span style="font-size:12px; color:#aaa;">無法讀取: ' + url + '</span><br>' +
+                          '<div class="error-hint"><b>💡 可能原因：</b><br>' +
+                          '您的網路環境、公司安全防火牆或防毒軟體封鎖了 cdnjs 伺服器。<br>' +
+                          '<b>🛠️ 解決方法：</b>請嘗試將電腦<b>切換至手機熱點網路</b>，或更換執行環境再重新整理。</div>');
+            }
+        }, true);
+
+        window.onerror = function(msg, url, line) {
+            showError('<b>JavaScript 執行錯誤:</b><br>' + msg + '<br><span style="font-size:12px; color:#aaa;">錯誤位置: 行數 ' + line + '</span>');
+            return false;
+        };
+    </script>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/3/turn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
@@ -256,7 +290,7 @@
     <div class="container">
         <div id="loading">
             <i class="fas fa-spinner fa-spin" id="loading-icon"></i>
-            <div id="loading-text">載入中...</div>
+            <div id="loading-text">系統初始化中...</div>
         </div>
         
         <div id="book-wrapper">
@@ -295,59 +329,59 @@
     </div>
 
     <script>
-        // 全域錯誤捕捉
-        window.onerror = function(msg, url, line) {
-            showError('JavaScript 執行錯誤: ' + msg + '<br>請檢查網路連線或是否正確引入套件。');
-            return false;
-        };
-
-        function showError(htmlContent) {
-            $('#loading-icon').removeClass('fa-spinner fa-spin').addClass('fa-exclamation-triangle').css('color', '#ff4a4a');
-            $('#loading-text').html(htmlContent);
-        }
-
-        // 偵測是否直接雙擊本機檔案開啟
-        if (window.location.protocol === 'file:') {
-            setTimeout(() => {
-                showError('偵測到您直接雙擊打開了 HTML 檔案。<br>' +
-                          '由於瀏覽器的安全隱私限制（CORS），無法直接讀取本機 PDF。<br>' +
-                          '<div class="error-hint"><b>💡 解決方法：</b><br>' +
-                          '1. 請使用 VS Code 的 <b>Live Server</b> 開啟網頁。<br>' +
-                          '2. 或將網頁與 PDF 檔案上傳到伺服器環境（如 GitHub Pages）再觀看。</div>');
-            }, 1000);
-        }
-
-        try {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        } catch(e) {
-            showError('PDF.js 套件初始化失敗，請檢查網路是否連線。');
-        }
-
         const pdfUrl = 'DLC.pdf'; 
         const isMobile = window.innerWidth < 768;
         let bookWidth, bookHeight;
 
-        if (isMobile) {
-            const maxWidth = window.innerWidth - 20;   
-            const maxHeight = window.innerHeight - 130; 
-            bookWidth = maxWidth;
-            bookHeight = bookWidth * 1.414; 
-            if (bookHeight > maxHeight) {
-                bookHeight = maxHeight;
-                bookWidth = bookHeight / 1.414;
-            }
+        if (window.location.protocol === 'file:') {
+            showError('偵測到您直接雙擊打開了 HTML 檔案。<br>' +
+                      '由於現代瀏覽器的安全隱私限制（CORS），本機網頁被禁止讀取檔案。<br>' +
+                      '<div class="error-hint"><b>💡 快速解決方法：</b><br>' +
+                      '1. 在 VS Code 中，對此 HTML 檔案按右鍵選擇 <b>Open with Live Server</b> 開啟。<br>' +
+                      '2. 或直接將此專案資料夾上傳至網頁伺服器（如 GitHub Pages）再打開網址。</div>');
         } else {
-            bookWidth = 848;  
-            bookHeight = 600; 
-        }
+            updateLoadingStatus('正在初始化 PDF 解碼核心...');
+            
+            try {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            } catch(e) {
+                showError('PDF.js 解碼組件初始化失敗。');
+            }
 
-        $('#book-wrapper, #flipbook').css({ 'width': bookWidth + 'px', 'height': bookHeight + 'px' });
-        const singlePageWidth = isMobile ? bookWidth : (bookWidth / 2);
-        $('head').append(`<style>.page { width: ${singlePageWidth}px !important; height: ${bookHeight}px !important; }</style>`);
+            // 計算基礎尺寸
+            if (isMobile) {
+                const maxWidth = window.innerWidth - 20;   
+                const maxHeight = window.innerHeight - 130; 
+                bookWidth = maxWidth;
+                bookHeight = bookWidth * 1.414; 
+                if (bookHeight > maxHeight) {
+                    bookHeight = maxHeight;
+                    bookWidth = bookHeight / 1.414;
+                }
+            } else {
+                bookWidth = 848;  
+                bookHeight = 600; 
+            }
 
-        // 執行主程序
-        if (window.location.protocol !== 'file:') {
-            pdfjsLib.getDocument(pdfUrl).promise.then(async function(pdf) {
+            $('#book-wrapper, #flipbook').css({ 'width': bookWidth + 'px', 'height': bookHeight + 'px' });
+            const singlePageWidth = isMobile ? bookWidth : (bookWidth / 2);
+            $('head').append(`<style>.page { width: ${singlePageWidth}px !important; height: ${bookHeight}px !important; }</style>`);
+
+            updateLoadingStatus('正在請求手冊 PDF 檔案 (DLC.pdf)...');
+
+            const loadingTask = pdfjsLib.getDocument(pdfUrl);
+            
+            loadingTask.onProgress = function(progressData) {
+                if (progressData.total > 0) {
+                    const percent = Math.round((progressData.loaded / progressData.total) * 100);
+                    updateLoadingStatus('正在下載手冊 PDF 檔案... ' + percent + '%');
+                } else {
+                    updateLoadingStatus('正在下載手冊 PDF 檔案... (' + Math.round(progressData.loaded / 1024) + ' KB)');
+                }
+            };
+
+            loadingTask.promise.then(async function(pdf) {
+                updateLoadingStatus('下載完成！正在建立電子書目錄...');
                 const totalPages = pdf.numPages;
                 $('#total-pages').text(totalPages);
                 $('#page-slider').attr('max', totalPages);
@@ -366,28 +400,22 @@
                     }
                 }
 
-                // 1. 建立預覽圖的 DOM 外殼（先放轉圈圖示，不阻礙主畫面打開）
+                // 建立預覽圖外殼
                 views.forEach((viewPages, index) => {
                     const $thumbItem = $(`<div class="thumb-item" id="thumb-view-${index}"><i class="fas fa-spinner fa-spin" style="color:#555; font-size:12px;"></i></div>`);
                     $thumbItem.data('pages', viewPages);
-                    $thumbItem.click(function() {
-                        $flipbook.turn('page', viewPages[0]); 
-                    });
+                    $thumbItem.click(function() { $flipbook.turn('page', viewPages[0]); });
                     $('#thumbnail-container').append($thumbItem);
                 });
 
-                // 2. 建立翻頁書的空頁面外殼（秒開核心邏輯）
+                // 建立翻頁書預備空頁
                 for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
                     const $pageDiv = $('<div class="page"></div>');
-                    if(!isMobile && (pageNum === 1 || pageNum === totalPages)) {
-                        $pageDiv.addClass('hard'); 
-                    }
-                    // 先塞入一個微型的載入圖示
+                    if(!isMobile && (pageNum === 1 || pageNum === totalPages)) { $pageDiv.addClass('hard'); }
                     $pageDiv.html('<div class="page-spinner"><i class="fas fa-spinner fa-spin"></i></div>');
                     $flipbook.append($pageDiv);
                 }
 
-                // 3. 隱藏主載入畫面，立刻初始化並顯示電子書！
                 $('#loading').hide();
                 
                 $flipbook.show().turn({
@@ -400,17 +428,13 @@
                     gradients: true, 
                     when: {
                         turning: function(event, page, view) {
-                            // 當書本正在翻頁時，提早觸發即將顯示頁面的渲染
                             view.forEach(p => { if(p > 0) renderPageOnDemand(p); });
                         },
                         turned: function(event, page, view) {
                             $('#current-page').text(page);
                             $('#page-slider').val(page);
-
-                            // 確保當前頁面已被渲染
                             view.forEach(p => { if(p > 0) renderPageOnDemand(p); });
 
-                            // 更新預覽圖高亮
                             $('.thumb-item').removeClass('active');
                             $('.thumb-item').each(function() {
                                 const pages = $(this).data('pages');
@@ -425,10 +449,10 @@
                     }
                 });
 
-                // 4. 管理「動態渲染」的快取機制
+                // 動態渲染頁面函數
                 const renderedPages = {};
                 async function renderPageOnDemand(pageNum) {
-                    if (renderedPages[pageNum]) return; // 畫過就不再重複畫
+                    if (renderedPages[pageNum]) return;
                     renderedPages[pageNum] = true;
 
                     try {
@@ -441,24 +465,21 @@
                         canvas.height = viewport.height;
                         canvas.width = viewport.width;
                         
-                        $pageDiv.empty().append(canvas); // 清除轉圈圈，塞入畫布
+                        $pageDiv.empty().append(canvas); 
                         await page.render({ canvasContext: context, viewport: viewport }).promise;
                     } catch (err) {
                         console.error('頁面渲染失敗:', pageNum, err);
                     }
                 }
 
-                // 預先手動觸發前兩頁，體驗更流暢
                 renderPageOnDemand(1);
                 if(!isMobile && totalPages > 1) renderPageOnDemand(2);
 
-                // 5. 在背景默默渲染下方縮圖（完全不卡主畫面翻頁）
+                // 背景繪製縮圖
                 async function startBackgroundThumbnails() {
                     for (let index = 0; index < views.length; index++) {
                         const viewPages = views[index];
                         const $thumbItem = $(`#thumb-view-${index}`);
-                        
-                        // 先清空轉圈圖示
                         $thumbItem.empty();
 
                         for (const pNum of viewPages) {
@@ -474,118 +495,104 @@
                                 thumbCanvas.width = thumbViewport.width;
                                 await page.render({ canvasContext: thumbContext, viewport: thumbViewport }).promise;
                             } catch(e) {
-                                console.error('縮圖渲染失敗:', pNum, e);
+                                console.error('縮圖失敗:', pNum, e);
                             }
                         }
                     }
                 }
                 startBackgroundThumbnails();
 
-                // ─── 以下為互動與控制邏輯（維持不變） ───
-                $('#page-slider').on('input change', function() {
-                    const targetPage = parseInt($(this).val());
-                    $('#current-page').text(targetPage);
-                    $flipbook.turn('page', targetPage);
-                });
-
+                // ─── 新版核心：2D 矩陣縮放與平移拖曳引擎（全面解決邊界吃字問題） ───
                 let zoomLevel = 1.0;
                 const maxZoom = 2.5; 
                 const minZoom = 1.0; 
                 const zoomStep = 0.3; 
+                let panX = 0; // 當前平移 X 軸偏移量
+                let panY = 0; // 當前平移 Y 軸偏移量
+                let isDragging = false;
+                let startX, startY;
+                const $container = $('.container');
 
-                function applyZoom() {
-                    $('#flipbook').css({
-                        'transform': `scale(${zoomLevel})`,
-                        'transform-origin': 'top center' 
-                    });
-                    $('#book-wrapper').css({
-                        'width': (bookWidth * zoomLevel) + 'px',
-                        'height': (bookHeight * zoomLevel) + 'px'
-                    });
+                // 取得滑鼠或手指觸控的精準 XY 座標
+                function getEventXY(e) {
+                    if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches.length) {
+                        return { x: e.originalEvent.touches[0].pageX, y: e.originalEvent.touches[0].pageY };
+                    }
+                    return { x: e.pageX, y: e.pageY };
+                }
+
+                // 執行縮放與平移渲染函數（含智慧邊界吸附防溢出演算法）
+                function applyZoomAndPan() {
+                    const containerWidth = $container.width();
+                    const containerHeight = $container.height();
+                    
+                    // 計算放大後，書本超出畫面邊緣的最大平移限度
+                    const maxPanX = Math.max(0, (bookWidth * zoomLevel - containerWidth) / 2);
+                    const maxPanY = Math.max(0, (bookHeight * zoomLevel - containerHeight) / 2);
+                    
+                    // 強制將拖動範圍鎖定在安全邊界內，防止往左或往上拉被吃掉
+                    panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+                    panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
 
                     if (zoomLevel > 1.0) {
-                        $('.container').css('cursor', 'grab');
-                        $flipbook.turn('disable', true); 
+                        // 放大狀態：強制從正中心點(center center)出發擴張，並套用位移
+                        $('#book-wrapper').css({
+                            'transform': `translate(${panX}px, ${panY}px) scale(${zoomLevel})`,
+                            'transform-origin': 'center center'
+                        });
+                        $container.css('cursor', 'grab');
+                        $flipbook.turn('disable', true); // 放大時禁用翻頁，避免操作衝突
                     } else {
-                        $('.container').css('cursor', 'default');
-                        $flipbook.turn('disable', false); 
+                        // 回歸原大小：清空所有平移狀態，完美解鎖
+                        panX = 0;
+                        panY = 0;
+                        $('#book-wrapper').css({
+                            'transform': 'none',
+                            'transform-origin': 'center center'
+                        });
+                        $container.css('cursor', 'default');
+                        $flipbook.turn('disable', false); // 解鎖翻頁功能
                     }
                 }
 
+                // 點擊放大與縮小
                 $('#zoom-in').click(function() {
-                    if (zoomLevel < maxZoom) { zoomLevel += zoomStep; applyZoom(); }
+                    if (zoomLevel < maxZoom) { zoomLevel += zoomStep; applyZoomAndPan(); }
                 });
                 $('#zoom-out').click(function() {
-                    if (zoomLevel > minZoom) { zoomLevel -= zoomStep; applyZoom(); }
+                    if (zoomLevel > minZoom) { zoomLevel -= zoomStep; applyZoomAndPan(); }
                 });
 
-                let isDragging = false;
-                let startX, startY, startScrollLeft, startScrollTop;
-                const $container = $('.container');
-
-                $container.on('mousedown', function(e) {
+                // 滑鼠/觸控 按下事件
+                $container.on('mousedown touchstart', function(e) {
                     if (zoomLevel <= 1.0) return;
-                    e.preventDefault();
+                    if ($(e.target).closest('.btn, .toolbar, .thumbnail-container').length) return;
+                    
+                    if (e.type === 'mousedown') e.preventDefault(); 
                     isDragging = true;
                     $container.css('cursor', 'grabbing');
-                    startX = e.pageX;
-                    startY = e.pageY;
-                    startScrollLeft = $container.scrollLeft();
-                    startScrollTop = $container.scrollTop();
+                    
+                    const coords = getEventXY(e);
+                    startX = coords.x - panX;
+                    startY = coords.y - panY;
                 });
 
-                $(document).on('mousemove', function(e) {
+                // 滑鼠移動 / 手指拖拉動態演算
+                $(document).on('mousemove touchmove', function(e) {
                     if (!isDragging) return;
-                    const deltaX = e.pageX - startX;
-                    const deltaY = e.pageY - startY;
-                    $container.scrollLeft(startScrollLeft - deltaX);
-                    $container.scrollTop(startScrollTop - deltaY);
+                    if (e.type === 'touchmove') e.preventDefault(); // 阻止手機網頁背景跟著滾動
+
+                    const coords = getEventXY(e);
+                    panX = coords.x - startX;
+                    panY = coords.y - startY;
+                    
+                    applyZoomAndPan(); // 渲染位置並實時進行邊界檢查
                 });
 
-                $(document).on('mouseup mouseleave', function() {
+                // 放開滑鼠 / 斷開觸控
+                $(document).on('mouseup mouseleave touchend touchcancel', function() {
                     if (!isDragging) return;
                     isDragging = false;
-                    if (zoomLevel > 1.0) {
-                        $container.css('cursor', 'grab');
-                    } else {
-                        $container.css('cursor', 'default');
-                    }
+                    if (zoomLevel > 1.0) { $container.css('cursor', 'grab'); } 
+                    else { $container.css('cursor', 'default'); }
                 });
-
-                $('#first-page').click(function() { $flipbook.turn('page', 1); });
-                $('#last-page').click(function() { $flipbook.turn('page', totalPages); });
-                $('#prev-page').click(function() { $flipbook.turn('previous'); });
-                $('#next-page').click(function() { $flipbook.turn('next'); });
-                
-                $('#fullscreen').click(function() {
-                    if (!document.fullscreenElement) {
-                        document.documentElement.requestFullscreen();
-                    } else {
-                        if (document.exitFullscreen) { document.exitFullscreen(); }
-                    }
-                });
-
-                $('#toggle-thumbnails').click(function() {
-                    const $thumbContainer = $('#thumbnail-container');
-                    if ($thumbContainer.css('display') === 'none') {
-                        $thumbContainer.css('display', 'flex');
-                        setTimeout(() => {
-                            const $active = $('.thumb-item.active');
-                            if ($active.length) {
-                                $active[0].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                            }
-                        }, 100);
-                    } else {
-                        $thumbContainer.css('display', 'none');
-                    }
-                });
-
-            }).catch(function(error) {
-                showError('PDF 載入失敗！<br>請檢查是否確實有 <b>DLC.pdf</b> 檔案，且與網頁放在同個資料夾。<br><span style="font-size:11px; color:#aaa;">Error: ' + error.message + '</span>');
-                console.error(error);
-            });
-        }
-    </script>
-
-</body>
-</html>
