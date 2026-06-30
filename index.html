@@ -30,7 +30,6 @@
             font-weight: 300;
         }
 
-        /* 主畫面區塊 */
         .container {
             flex: 1;
             overflow: auto; 
@@ -41,7 +40,6 @@
             padding: 10px;
         }
 
-        /* 包裝盒與書本本體 */
         #book-wrapper {
             position: relative;
             margin: auto;
@@ -63,7 +61,6 @@
             display: block;
         }
 
-        /* 下方預覽圖軌道 */
         .thumbnail-container {
             display: none;
             height: 120px;
@@ -79,7 +76,6 @@
             z-index: 9;
         }
 
-        /* 美化預覽軸捲動條 */
         .thumbnail-container::-webkit-scrollbar {
             height: 6px;
         }
@@ -100,7 +96,6 @@
             transition: all 0.2s ease;
             background: rgba(255, 255, 255, 0.05);
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            /* ⭐ 關鍵修正：禁止 Flex 擠壓縮圖，徹底解決圖片被壓扁的問題 */
             flex-shrink: 0; 
         }
 
@@ -108,7 +103,6 @@
             border-color: rgba(255, 255, 255, 0.5);
         }
 
-        /* 當前觀看頁面的紅色高亮外框 */
         .thumb-item.active {
             border-color: #ff4a4a;
             box-shadow: 0 0 10px rgba(255, 74, 74, 0.6);
@@ -120,7 +114,6 @@
             display: block;
         }
 
-        /* 下方控制列 */
         .toolbar {
             height: 60px;
             background: rgba(20, 20, 20, 0.95);
@@ -136,7 +129,6 @@
             padding: 0 15px;
         }
 
-        /* ─── 新增：進度條（線條+圓點）容器與樣式 ─── */
         .progress-container {
             flex: 1;
             display: flex;
@@ -161,7 +153,6 @@
             background: rgba(255, 255, 255, 0.4);
         }
 
-        /* 自訂進度條圓點 (Chrome, Safari, Edge) */
         #page-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
@@ -177,7 +168,6 @@
             transform: scale(1.25);
         }
 
-        /* 自訂進度條圓點 (Firefox) */
         #page-slider::-moz-range-thumb {
             width: 14px;
             height: 14px;
@@ -231,14 +221,24 @@
             color: #fff;
             font-size: 16px;
             text-align: center;
+            max-width: 80%;
+            line-height: 1.6;
         }
         #loading i {
             font-size: 35px;
             margin-bottom: 15px;
             color: #00adb5;
         }
+        .error-hint {
+            color: #ff6b6b;
+            font-size: 13px;
+            margin-top: 10px;
+            background: rgba(0,0,0,0.4);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: left;
+        }
 
-        /* 📱 RWD 手機版微調 */
         @media (max-width: 767px) {
             #first-page, #last-page, .divider {
                 display: none; 
@@ -255,8 +255,8 @@
 
     <div class="container">
         <div id="loading">
-            <i class="fas fa-spinner fa-spin"></i>
-            <div>載入中...</div>
+            <i class="fas fa-spinner fa-spin" id="loading-icon"></i>
+            <div id="loading-text">載入中...</div>
         </div>
         
         <div id="book-wrapper">
@@ -295,20 +295,43 @@
     </div>
 
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        // 偵測全域 JS 錯誤（例如 CDN 沒載入成功）
+        window.onerror = function(msg, url, line) {
+            showError('JavaScript 執行錯誤: ' + msg + '<br>請檢查網路連線或是否正確引入套件。');
+            return false;
+        };
+
+        function showError(htmlContent) {
+            $('#loading-icon').removeClass('fa-spinner fa-spin').addClass('fa-exclamation-triangle').css('color', '#ff4a4a');
+            $('#loading-text').html(htmlContent);
+        }
+
+        // 檢查是否直接用 file:// 開啟
+        if (window.location.protocol === 'file:') {
+            setTimeout(() => {
+                showError('偵測到您直接雙擊打開了 HTML 檔案。<br>' +
+                          '由於瀏覽器的安全隱私限制（CORS），無法直接讀取本機 PDF。<br>' +
+                          '<div class="error-hint"><b>💡 解決方法：</b><br>' +
+                          '1. 請使用 VS Code 的 <b>Live Server</b> 開啟網頁。<br>' +
+                          '2. 或將網頁與 PDF 檔案上傳到網路伺服器伺服器環境（如 GitHub Pages）再觀看。</div>');
+            }, 1000);
+        }
+
+        try {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        } catch(e) {
+            showError('PDF.js 套件初始化失敗，請檢查網路是否連線。');
+        }
 
         const pdfUrl = 'DLC.pdf'; 
-        
         const isMobile = window.innerWidth < 768;
         let bookWidth, bookHeight;
 
         if (isMobile) {
             const maxWidth = window.innerWidth - 20;   
             const maxHeight = window.innerHeight - 130; 
-            
             bookWidth = maxWidth;
             bookHeight = bookWidth * 1.414; 
-            
             if (bookHeight > maxHeight) {
                 bookHeight = maxHeight;
                 bookWidth = bookHeight / 1.414;
@@ -323,9 +346,159 @@
         $('head').append(`<style>.page { width: ${singlePageWidth}px !important; height: ${bookHeight}px !important; }</style>`);
 
         // 載入 PDF
-        pdfjsLib.getDocument(pdfUrl).promise.then(async function(pdf) {
-            const totalPages = pdf.numPages;
-            $('#total-pages').text(totalPages);
-            
-            // ⭐ 新增：初始化同步設定進度條的最大值
-            $('#page-
+        if (window.location.protocol !== 'file:') {
+            pdfjsLib.getDocument(pdfUrl).promise.then(async function(pdf) {
+                const totalPages = pdf.numPages;
+                $('#total-pages').text(totalPages);
+                $('#page-slider').attr('max', totalPages);
+
+                const $flipbook = $('#flipbook');
+                const views = [];
+                if (isMobile) {
+                    for (let i = 1; i <= totalPages; i++) views.push([i]);
+                } else {
+                    views.push([1]); 
+                    for (let i = 2; i < totalPages; i += 2) {
+                        views.push([i, i + 1]); 
+                    }
+                    if (totalPages % 2 === 0 && totalPages > 1) {
+                        views.push([totalPages]); 
+                    }
+                }
+
+                views.forEach((viewPages, index) => {
+                    const $thumbItem = $(`<div class="thumb-item" id="thumb-view-${index}"></div>`);
+                    $thumbItem.data('pages', viewPages);
+                    $thumbItem.click(function() {
+                        $flipbook.turn('page', viewPages[0]); 
+                    });
+                    $('#thumbnail-container').append($thumbItem);
+                });
+
+                for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+                    const $pageDiv = $('<div class="page"></div>');
+                    if(!isMobile && (pageNum === 1 || pageNum === totalPages)) {
+                        $pageDiv.addClass('hard'); 
+                    }
+                    const canvas = document.createElement('canvas');
+                    $pageDiv.append(canvas);
+                    $flipbook.append($pageDiv);
+
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 1.5 }); 
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    const renderContext = { canvasContext: context, viewport: viewport };
+                    await page.render(renderContext).promise;
+
+                    const viewIndex = views.findIndex(v => v.includes(pageNum));
+                    if (viewIndex !== -1) {
+                        const thumbCanvas = document.createElement('canvas');
+                        thumbCanvas.className = 'thumb-canvas';
+                        $(`#thumb-view-${viewIndex}`).append(thumbCanvas);
+
+                        const thumbViewport = page.getViewport({ scale: 0.2 }); 
+                        const thumbContext = thumbCanvas.getContext('2d');
+                        thumbCanvas.height = thumbViewport.height;
+                        thumbCanvas.width = thumbViewport.width;
+                        const thumbRenderContext = { canvasContext: thumbContext, viewport: thumbViewport };
+                        await page.render(thumbRenderContext).promise;
+                    }
+                }
+
+                $('#loading').hide();
+                
+                $flipbook.show().turn({
+                    width: bookWidth,      
+                    height: bookHeight,     
+                    display: isMobile ? 'single' : 'double', 
+                    autoCenter: true,
+                    elevation: isMobile ? 0 : 50, 
+                    duration: 600,  
+                    gradients: true, 
+                    when: {
+                        turned: function(event, page, view) {
+                            $('#current-page').text(page);
+                            $('#page-slider').val(page);
+
+                            $('.thumb-item').removeClass('active');
+                            $('.thumb-item').each(function() {
+                                const pages = $(this).data('pages');
+                                if (pages && pages.includes(page)) {
+                                    $(this).addClass('active');
+                                    if ($('#thumbnail-container').css('display') !== 'none') {
+                                        this.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
+
+                $('#page-slider').on('input change', function() {
+                    const targetPage = parseInt($(this).val());
+                    $('#current-page').text(targetPage);
+                    $flipbook.turn('page', targetPage);
+                });
+
+                let zoomLevel = 1.0;
+                const maxZoom = 2.5; 
+                const minZoom = 1.0; 
+                const zoomStep = 0.3; 
+
+                function applyZoom() {
+                    $('#flipbook').css({
+                        'transform': `scale(${zoomLevel})`,
+                        'transform-origin': 'top center' 
+                    });
+                    $('#book-wrapper').css({
+                        'width': (bookWidth * zoomLevel) + 'px',
+                        'height': (bookHeight * zoomLevel) + 'px'
+                    });
+                }
+
+                $('#zoom-in').click(function() {
+                    if (zoomLevel < maxZoom) { zoomLevel += zoomStep; applyZoom(); }
+                });
+                $('#zoom-out').click(function() {
+                    if (zoomLevel > minZoom) { zoomLevel -= zoomStep; applyZoom(); }
+                });
+
+                $('#first-page').click(function() { $flipbook.turn('page', 1); });
+                $('#last-page').click(function() { $flipbook.turn('page', totalPages); });
+                $('#prev-page').click(function() { $flipbook.turn('previous'); });
+                $('#next-page').click(function() { $flipbook.turn('next'); });
+                
+                $('#fullscreen').click(function() {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen();
+                    } else {
+                        if (document.exitFullscreen) { document.exitFullscreen(); }
+                    }
+                });
+
+                $('#toggle-thumbnails').click(function() {
+                    const $thumbContainer = $('#thumbnail-container');
+                    if ($thumbContainer.css('display') === 'none') {
+                        $thumbContainer.css('display', 'flex');
+                        setTimeout(() => {
+                            const $active = $('.thumb-item.active');
+                            if ($active.length) {
+                                $active[0].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                            }
+                        }, 100);
+                    } else {
+                        $thumbContainer.css('display', 'none');
+                    }
+                });
+
+            }).catch(function(error) {
+                showError('PDF 載入失敗！<br>請檢查是否確實有 <b>DLC.pdf</b> 檔案，且與網頁放在同個資料夾。<br><span style="font-size:11px; color:#aaa;">Error: ' + error.message + '</span>');
+                console.error(error);
+            });
+        }
+    </script>
+
+</body>
+</html>
