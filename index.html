@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迪士尼探險號旅遊手冊</title>
+    <style>
+        /* 讓網頁全螢幕，不留任何邊框和滾動條 */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #333;
+        }
+        /* 讓嵌入的 PDF 閱讀器填滿整個螢幕 */
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <iframe src="web/viewer.html?file=../my-book.pdf"></iframe>
+
+</body>
+</html>
